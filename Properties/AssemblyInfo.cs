@@ -5,12 +5,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("Svelte-WebSocket-Server")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyTitle("SvelteWebSocketServer")]
+[assembly: AssemblyDescription("Basic .NET implementation of a WebSocket server for svelte-websocket-stores NPM library")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("Svelte-WebSocket-Server")]
-[assembly: AssemblyCopyright("Copyright ©  2024")]
+[assembly: AssemblyCompany("Jonathan Talcott")]
+[assembly: AssemblyProduct("SvelteWebSocketServer")]
+[assembly: AssemblyCopyright("Copyright © 2024")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
