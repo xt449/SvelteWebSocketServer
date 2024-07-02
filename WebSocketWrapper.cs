@@ -68,17 +68,17 @@ namespace SvelteWebSocketServer
 				{
 					case "boolean":
 						{
-							await SetBooleanAsync((string)jsonObject["id"], (bool)jsonObject["value"]);
+							await SetBooleanAsyncAndInvoke((string)jsonObject["id"], (bool)jsonObject["value"]);
 							break;
 						}
 					case "number":
 						{
-							await SetNumberAsync((string)jsonObject["id"], (float)jsonObject["value"]);
+							await SetNumberAsyncAndInvoke((string)jsonObject["id"], (float)jsonObject["value"]);
 							break;
 						}
 					case "string":
 						{
-							await SetStringAsync((string)jsonObject["id"], (string)jsonObject["value"]);
+							await SetStringAsyncAndInvoke((string)jsonObject["id"], (string)jsonObject["value"]);
 							break;
 						}
 				}
@@ -114,8 +114,6 @@ namespace SvelteWebSocketServer
 		{
 			booleans[id] = value;
 			await BroadcastAsync(BuildBooleanMessage(id, value));
-
-			OnBooleanSet?.Invoke(id, value);
 		}
 
 		public float GetNumber(string id)
@@ -128,8 +126,6 @@ namespace SvelteWebSocketServer
 		{
 			numbers[id] = value;
 			await BroadcastAsync(BuildNumberMessage(id, value));
-
-			OnNumberSet?.Invoke(id, value);
 		}
 
 		public string GetString(string id)
@@ -139,6 +135,30 @@ namespace SvelteWebSocketServer
 		}
 
 		public async Task SetStringAsync(string id, string value)
+		{
+			strings[id] = value;
+			await BroadcastAsync(BuildStringMessage(id, value));
+		}
+
+		// Event Invokers
+
+		private async Task SetBooleanAsyncAndInvoke(string id, bool value)
+		{
+			booleans[id] = value;
+			await BroadcastAsync(BuildBooleanMessage(id, value));
+
+			OnBooleanSet?.Invoke(id, value);
+		}
+
+		private async Task SetNumberAsyncAndInvoke(string id, float value)
+		{
+			numbers[id] = value;
+			await BroadcastAsync(BuildNumberMessage(id, value));
+
+			OnNumberSet?.Invoke(id, value);
+		}
+
+		private async Task SetStringAsyncAndInvoke(string id, string value)
 		{
 			strings[id] = value;
 			await BroadcastAsync(BuildStringMessage(id, value));
