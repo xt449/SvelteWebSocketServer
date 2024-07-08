@@ -122,36 +122,54 @@ namespace SvelteWebSocketServer
 
 		// Accessors
 
+		/// <summary>
+		/// Get value or default if undefined
+		/// </summary>
 		public bool GetBoolean(string id)
 		{
 			booleans.TryGetValue(id, out var value);
 			return value;
 		}
 
+		/// <summary>
+		/// Store value and send to clients
+		/// </summary>
 		public async Task SetBooleanAsync(string id, bool value)
 		{
 			booleans[id] = value;
 			await BroadcastAsync(BuildBooleanMessage(id, value));
 		}
 
+		/// <summary>
+		/// Get value or default if undefined
+		/// </summary>
 		public float GetNumber(string id)
 		{
 			numbers.TryGetValue(id, out var value);
 			return value;
 		}
 
+		/// <summary>
+		/// Store value and send to clients
+		/// </summary>
 		public async Task SetNumberAsync(string id, float value)
 		{
 			numbers[id] = value;
 			await BroadcastAsync(BuildNumberMessage(id, value));
 		}
 
+		/// <summary>
+		/// Get value or default if undefined
+		/// </summary>
 		public string GetString(string id)
 		{
 			strings.TryGetValue(id, out var value);
 			return value;
 		}
 
+		/// <summary>
+		/// Store value and send to clients
+		/// </summary>
 		public async Task SetStringAsync(string id, string value)
 		{
 			strings[id] = value;
