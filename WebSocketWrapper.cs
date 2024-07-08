@@ -29,6 +29,8 @@ namespace SvelteWebSocketServer
 
 		protected override async Task OnClientConnectedAsync(IWebSocketContext context)
 		{
+			// On client connect, send all current stored values
+
 			foreach (var kvp in booleans)
 			{
 				await SendAsync(context, BuildBooleanMessage(kvp.Key, kvp.Value));
@@ -45,6 +47,7 @@ namespace SvelteWebSocketServer
 
 		protected override async Task OnMessageReceivedAsync(IWebSocketContext context, byte[] buffer, IWebSocketReceiveResult result)
 		{
+			// Only handle text-type messages
 			if (result.MessageType == (int)WebSocketMessageType.Text)
 			{
 				JObject jsonObject;
@@ -68,17 +71,32 @@ namespace SvelteWebSocketServer
 				{
 					case "boolean":
 						{
-							await SetBooleanAsyncAndInvoke((string)jsonObject["id"], (bool)jsonObject["value"]);
+							var id = (string)jsonObject["id"];
+							var value = (bool)jsonObject["value"];
+
+							await SetBooleanAsync(id, value);
+							// Trigger event
+							OnBooleanSet?.Invoke(id, value);
 							break;
 						}
 					case "number":
 						{
-							await SetNumberAsyncAndInvoke((string)jsonObject["id"], (float)jsonObject["value"]);
+							var id = (string)jsonObject["id"];
+							var value = (float)jsonObject["value"];
+
+							await SetNumberAsync(id, value);
+							// Trigger event
+							OnNumberSet?.Invoke(id, value);
 							break;
 						}
 					case "string":
 						{
-							await SetStringAsyncAndInvoke((string)jsonObject["id"], (string)jsonObject["value"]);
+							var id = (string)jsonObject["id"];
+							var value = (string)jsonObject["value"];
+
+							await SetStringAsync(id, value);
+							// Trigger event
+							OnStringSet?.Invoke(id, value);
 							break;
 						}
 				}
@@ -138,32 +156,6 @@ namespace SvelteWebSocketServer
 		{
 			strings[id] = value;
 			await BroadcastAsync(BuildStringMessage(id, value));
-		}
-
-		// Event Invokers
-
-		private async Task SetBooleanAsyncAndInvoke(string id, bool value)
-		{
-			booleans[id] = value;
-			await BroadcastAsync(BuildBooleanMessage(id, value));
-
-			OnBooleanSet?.Invoke(id, value);
-		}
-
-		private async Task SetNumberAsyncAndInvoke(string id, float value)
-		{
-			numbers[id] = value;
-			await BroadcastAsync(BuildNumberMessage(id, value));
-
-			OnNumberSet?.Invoke(id, value);
-		}
-
-		private async Task SetStringAsyncAndInvoke(string id, string value)
-		{
-			strings[id] = value;
-			await BroadcastAsync(BuildStringMessage(id, value));
-
-			OnStringSet?.Invoke(id, value);
 		}
 	}
 }
