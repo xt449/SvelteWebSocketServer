@@ -14,9 +14,9 @@ namespace SvelteWebSocketServer
 		private readonly List<(Regex regex, NumberRegexSetEvent handler)> numberRegexHandlers = new List<(Regex regex, NumberRegexSetEvent handler)>();
 		private readonly List<(Regex regex, StringRegexSetEvent handler)> stringRegexHandlers = new List<(Regex regex, StringRegexSetEvent handler)>();
 
-		public delegate void BooleanRegexSetEvent(Match match, bool value);
-		public delegate void NumberRegexSetEvent(Match match, float value);
-		public delegate void StringRegexSetEvent(Match match, string value);
+		public delegate void BooleanRegexSetEvent(string scope, Match match, bool value);
+		public delegate void NumberRegexSetEvent(string scope, Match match, float value);
+		public delegate void StringRegexSetEvent(string scope, Match match, string value);
 
 		public WebSocketWrapperListener(WebSocketWrapper wsw)
 		{
@@ -25,13 +25,13 @@ namespace SvelteWebSocketServer
 			wsw.OnStringSet += OnStringSet;
 		}
 
-		private void OnBooleanSet(string id, bool value)
+		private void OnBooleanSet(string scope, string id, bool value)
 		{
 			if (booleanHandlers.TryGetValue(id, out var handlerList))
 			{
 				foreach (var handler in handlerList)
 				{
-					handler(id, value);
+					handler(scope, id, value);
 				}
 			}
 
@@ -41,18 +41,18 @@ namespace SvelteWebSocketServer
 
 				if (match.Success)
 				{
-					handler(match, value);
+					handler(scope, match, value);
 				}
 			}
 		}
 
-		private void OnNumberSet(string id, float value)
+		private void OnNumberSet(string scope, string id, float value)
 		{
 			if (numberHandlers.TryGetValue(id, out var handlerList))
 			{
 				foreach (var handler in handlerList)
 				{
-					handler(id, value);
+					handler(scope, id, value);
 				}
 			}
 
@@ -62,18 +62,18 @@ namespace SvelteWebSocketServer
 
 				if (match.Success)
 				{
-					handler(match, value);
+					handler(scope, match, value);
 				}
 			}
 		}
 
-		private void OnStringSet(string id, string value)
+		private void OnStringSet(string scope, string id, string value)
 		{
 			if (stringHandlers.TryGetValue(id, out var handlerList))
 			{
 				foreach (var handler in handlerList)
 				{
-					handler(id, value);
+					handler(scope, id, value);
 				}
 			}
 
@@ -83,7 +83,7 @@ namespace SvelteWebSocketServer
 
 				if (match.Success)
 				{
-					handler(match, value);
+					handler(scope, match, value);
 				}
 			}
 		}

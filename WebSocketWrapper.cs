@@ -9,13 +9,13 @@ namespace SvelteWebSocketServer
 {
 	public class WebSocketWrapper : WebSocketModule
 	{
-		private readonly Dictionary<string, bool> booleans = new Dictionary<string, bool>();
-		private readonly Dictionary<string, float> numbers = new Dictionary<string, float>();
-		private readonly Dictionary<string, string> strings = new Dictionary<string, string>();
+		private readonly Dictionary<(string scope, string id), bool> booleans = new Dictionary<(string, string), bool>();
+		private readonly Dictionary<(string scope, string id), float> numbers = new Dictionary<(string, string), float>();
+		private readonly Dictionary<(string scope, string id), string> strings = new Dictionary<(string, string), string>();
 
-		public delegate void BooleanSetEvent(string id, bool value);
-		public delegate void NumberSetEvent(string id, float value);
-		public delegate void StringSetEvent(string id, string value);
+		public delegate void BooleanSetEvent(string scope, string id, bool value);
+		public delegate void NumberSetEvent(string scope, string id, float value);
+		public delegate void StringSetEvent(string scope, string id, string value);
 
 		public event BooleanSetEvent OnBooleanSet;
 		public event NumberSetEvent OnNumberSet;
@@ -33,15 +33,15 @@ namespace SvelteWebSocketServer
 
 			foreach (var kvp in booleans)
 			{
-				await SendAsync(context, BuildBooleanMessage(kvp.Key, kvp.Value));
+				await SendAsync(context, BuildBooleanMessage(kvp.Key.scope, kvp.Key.id, kvp.Value));
 			}
 			foreach (var kvp in numbers)
 			{
-				await SendAsync(context, BuildNumberMessage(kvp.Key, kvp.Value));
+				await SendAsync(context, BuildNumberMessage(kvp.Key.scope, kvp.Key.id, kvp.Value));
 			}
 			foreach (var kvp in strings)
 			{
-				await SendAsync(context, BuildStringMessage(kvp.Key, kvp.Value));
+				await SendAsync(context, BuildStringMessage(kvp.Key.scope, kvp.Key.id, kvp.Value));
 			}
 		}
 
@@ -62,7 +62,7 @@ namespace SvelteWebSocketServer
 				}
 
 				// Abort on invalid json object
-				if (jsonObject["type"] == null || jsonObject["id"] == null || jsonObject["value"] == null)
+				if (jsonObject["scope"] == null || jsonObject["type"] == null || jsonObject["id"] == null || jsonObject["value"] == null)
 				{
 					return;
 				}
@@ -71,32 +71,35 @@ namespace SvelteWebSocketServer
 				{
 					case "boolean":
 						{
+							var scope = (string)jsonObject["scope"];
 							var id = (string)jsonObject["id"];
 							var value = (bool)jsonObject["value"];
 
-							await SetBooleanAsync(id, value);
+							await SetBooleanAsync(scope, id, value);
 							// Trigger event
-							OnBooleanSet?.Invoke(id, value);
+							OnBooleanSet?.Invoke(scope, id, value);
 							break;
 						}
 					case "number":
 						{
+							var scope = (string)jsonObject["scope"];
 							var id = (string)jsonObject["id"];
 							var value = (float)jsonObject["value"];
 
-							await SetNumberAsync(id, value);
+							await SetNumberAsync(scope, id, value);
 							// Trigger event
-							OnNumberSet?.Invoke(id, value);
+							OnNumberSet?.Invoke(scope, id, value);
 							break;
 						}
 					case "string":
 						{
+							var scope = (string)jsonObject["scope"];
 							var id = (string)jsonObject["id"];
 							var value = (string)jsonObject["value"];
 
-							await SetStringAsync(id, value);
+							await SetStringAsync(scope, id, value);
 							// Trigger event
-							OnStringSet?.Invoke(id, value);
+							OnStringSet?.Invoke(scope, id, value);
 							break;
 						}
 				}
@@ -105,19 +108,19 @@ namespace SvelteWebSocketServer
 
 		// Helpers
 
-		private string BuildBooleanMessage(string id, bool value)
+		private string BuildBooleanMessage(string scope, string id, bool value)
 		{
-			return $"{{\"id\":\"{id}\",\"type\":\"boolean\",\"value\":{(value ? "true" : "false")}}}";
+			return $"{{\"scope\":\"{scope}\",\"id\":\"{id}\",\"type\":\"boolean\",\"value\":{(value ? "true" : "false")}}}";
 		}
 
-		private string BuildNumberMessage(string id, float value)
+		private string BuildNumberMessage(string scope, string id, float value)
 		{
-			return $"{{\"id\":\"{id}\",\"type\":\"number\",\"value\":{value}}}";
+			return $"{{\"scope\":\"{scope}\",\"id\":\"{id}\",\"type\":\"number\",\"value\":{value}}}";
 		}
 
-		private string BuildStringMessage(string id, string value)
+		private string BuildStringMessage(string scope, string id, string value)
 		{
-			return $"{{\"id\":\"{id}\",\"type\":\"string\",\"value\":\"{value}\"}}";
+			return $"{{\"scope\":\"{scope}\",\"id\":\"{id}\",\"type\":\"string\",\"value\":\"{value}\"}}";
 		}
 
 		// Accessors
@@ -125,55 +128,55 @@ namespace SvelteWebSocketServer
 		/// <summary>
 		/// Get value or default if undefined
 		/// </summary>
-		public bool GetBoolean(string id)
+		public bool GetBoolean(string scope, string id)
 		{
-			booleans.TryGetValue(id, out var value);
+			booleans.TryGetValue((scope, id), out var value);
 			return value;
 		}
 
 		/// <summary>
 		/// Store value and send to clients
 		/// </summary>
-		public async Task SetBooleanAsync(string id, bool value)
+		public async Task SetBooleanAsync(string scope, string id, bool value)
 		{
-			booleans[id] = value;
-			await BroadcastAsync(BuildBooleanMessage(id, value));
+			booleans[(scope, id)] = value;
+			await BroadcastAsync(BuildBooleanMessage(scope, id, value));
 		}
 
 		/// <summary>
 		/// Get value or default if undefined
 		/// </summary>
-		public float GetNumber(string id)
+		public float GetNumber(string scope, string id)
 		{
-			numbers.TryGetValue(id, out var value);
+			numbers.TryGetValue((scope, id), out var value);
 			return value;
 		}
 
 		/// <summary>
 		/// Store value and send to clients
 		/// </summary>
-		public async Task SetNumberAsync(string id, float value)
+		public async Task SetNumberAsync(string scope, string id, float value)
 		{
-			numbers[id] = value;
-			await BroadcastAsync(BuildNumberMessage(id, value));
+			numbers[(scope, id)] = value;
+			await BroadcastAsync(BuildNumberMessage(scope, id, value));
 		}
 
 		/// <summary>
 		/// Get value or default if undefined
 		/// </summary>
-		public string GetString(string id)
+		public string GetString(string scope, string id)
 		{
-			strings.TryGetValue(id, out var value);
+			strings.TryGetValue((scope, id), out var value);
 			return value;
 		}
 
 		/// <summary>
 		/// Store value and send to clients
 		/// </summary>
-		public async Task SetStringAsync(string id, string value)
+		public async Task SetStringAsync(string scope, string id, string value)
 		{
-			strings[id] = value;
-			await BroadcastAsync(BuildStringMessage(id, value));
+			strings[(scope, id)] = value;
+			await BroadcastAsync(BuildStringMessage(scope, id, value));
 		}
 	}
 }
