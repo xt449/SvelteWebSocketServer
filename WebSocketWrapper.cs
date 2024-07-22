@@ -9,11 +9,9 @@ namespace SvelteWebSocketServer
 {
 	public class WebSocketWrapper : WebSocketModule
 	{
-		private const string GLOBAL_SCOPE = "global";
-
-		private readonly Dictionary<string, bool> booleans = new Dictionary<string, bool>();
-		private readonly Dictionary<string, float> numbers = new Dictionary<string, float>();
-		private readonly Dictionary<string, string> strings = new Dictionary<string, string>();
+		private readonly Dictionary<(string scope, string id), bool> booleans = new Dictionary<(string, string), bool>();
+		private readonly Dictionary<(string scope, string id), float> numbers = new Dictionary<(string, string), float>();
+		private readonly Dictionary<(string scope, string id), string> strings = new Dictionary<(string, string), string>();
 
 		public delegate void BooleanSetEvent(string scope, string id, bool value);
 		public delegate void NumberSetEvent(string scope, string id, float value);
@@ -35,15 +33,15 @@ namespace SvelteWebSocketServer
 
 			foreach (var kvp in booleans)
 			{
-				await SendAsync(context, BuildBooleanMessage(GLOBAL_SCOPE, kvp.Key, kvp.Value));
+				await SendAsync(context, BuildBooleanMessage(kvp.Key.scope, kvp.Key.id, kvp.Value));
 			}
 			foreach (var kvp in numbers)
 			{
-				await SendAsync(context, BuildNumberMessage(GLOBAL_SCOPE, kvp.Key, kvp.Value));
+				await SendAsync(context, BuildNumberMessage(kvp.Key.scope, kvp.Key.id, kvp.Value));
 			}
 			foreach (var kvp in strings)
 			{
-				await SendAsync(context, BuildStringMessage(GLOBAL_SCOPE, kvp.Key, kvp.Value));
+				await SendAsync(context, BuildStringMessage(kvp.Key.scope, kvp.Key.id, kvp.Value));
 			}
 		}
 
@@ -130,9 +128,9 @@ namespace SvelteWebSocketServer
 		/// <summary>
 		/// Get value or default if undefined
 		/// </summary>
-		public bool GetBoolean(string id)
+		public bool GetBoolean(string scope, string id)
 		{
-			booleans.TryGetValue(id, out var value);
+			booleans.TryGetValue((scope, id), out var value);
 			return value;
 		}
 
@@ -141,16 +139,16 @@ namespace SvelteWebSocketServer
 		/// </summary>
 		public async Task SetBooleanAsync(string scope, string id, bool value)
 		{
-			booleans[id] = value;
+			booleans[(scope, id)] = value;
 			await BroadcastAsync(BuildBooleanMessage(scope, id, value));
 		}
 
 		/// <summary>
 		/// Get value or default if undefined
 		/// </summary>
-		public float GetNumber(string id)
+		public float GetNumber(string scope, string id)
 		{
-			numbers.TryGetValue(id, out var value);
+			numbers.TryGetValue((scope, id), out var value);
 			return value;
 		}
 
@@ -159,16 +157,16 @@ namespace SvelteWebSocketServer
 		/// </summary>
 		public async Task SetNumberAsync(string scope, string id, float value)
 		{
-			numbers[id] = value;
+			numbers[(scope, id)] = value;
 			await BroadcastAsync(BuildNumberMessage(scope, id, value));
 		}
 
 		/// <summary>
 		/// Get value or default if undefined
 		/// </summary>
-		public string GetString(string id)
+		public string GetString(string scope, string id)
 		{
-			strings.TryGetValue(id, out var value);
+			strings.TryGetValue((scope, id), out var value);
 			return value;
 		}
 
@@ -177,7 +175,7 @@ namespace SvelteWebSocketServer
 		/// </summary>
 		public async Task SetStringAsync(string scope, string id, string value)
 		{
-			strings[id] = value;
+			strings[(scope, id)] = value;
 			await BroadcastAsync(BuildStringMessage(scope, id, value));
 		}
 	}
