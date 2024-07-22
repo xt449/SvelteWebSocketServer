@@ -18,5 +18,10 @@ namespace SvelteWebSocketServer
 		{
 			ws.Start();
 		}
+
+		public void Stop()
+		{
+			ws.Listener.Stop();
+		}
 	}
 }
