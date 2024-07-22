@@ -9,6 +9,7 @@
     <license type="expression">MIT</license>
     <!-- <icon>icon.png</icon> -->
     <projectUrl>https://github.com/xt449/SvelteWebSocketServer</projectUrl>
+	<repository type="git" url="https://github.com/xt449/SvelteWebSocketServer" />
     <readme>README.md</readme>
     <description>$description$</description>
     <copyright>$copyright$</copyright>
