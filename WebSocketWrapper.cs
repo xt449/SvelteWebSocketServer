@@ -1,6 +1,6 @@
 ﻿using EmbedIO.WebSockets;
 using Newtonsoft.Json.Linq;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading.Tasks;
@@ -9,9 +9,9 @@ namespace SvelteWebSocketServer
 {
 	public class WebSocketWrapper : WebSocketModule
 	{
-		private readonly Dictionary<(string scope, string id), bool> booleans = new Dictionary<(string, string), bool>();
-		private readonly Dictionary<(string scope, string id), float> numbers = new Dictionary<(string, string), float>();
-		private readonly Dictionary<(string scope, string id), string> strings = new Dictionary<(string, string), string>();
+		private readonly ConcurrentDictionary<(string scope, string id), bool> booleans = new ConcurrentDictionary<(string, string), bool>();
+		private readonly ConcurrentDictionary<(string scope, string id), float> numbers = new ConcurrentDictionary<(string, string), float>();
+		private readonly ConcurrentDictionary<(string scope, string id), string> strings = new ConcurrentDictionary<(string, string), string>();
 
 		public delegate void BooleanSetEvent(string scope, string id, bool value);
 		public delegate void NumberSetEvent(string scope, string id, float value);
