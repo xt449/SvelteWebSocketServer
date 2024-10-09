@@ -1,6 +1,7 @@
 ﻿using EmbedIO.WebSockets;
 using Newtonsoft.Json.Linq;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,14 +13,17 @@ namespace SvelteWebSocketServer
 		private readonly ConcurrentDictionary<(string scope, string id), bool> booleans = new ConcurrentDictionary<(string, string), bool>();
 		private readonly ConcurrentDictionary<(string scope, string id), float> numbers = new ConcurrentDictionary<(string, string), float>();
 		private readonly ConcurrentDictionary<(string scope, string id), string> strings = new ConcurrentDictionary<(string, string), string>();
+		private readonly ConcurrentDictionary<(string scope, string id), JObject> objects = new ConcurrentDictionary<(string, string), JObject>();
 
 		public delegate void BooleanSetEvent(string scope, string id, bool value);
 		public delegate void NumberSetEvent(string scope, string id, float value);
 		public delegate void StringSetEvent(string scope, string id, string value);
+		public delegate void ObjectSetEvent(string scope, string id, JObject value);
 
 		public event BooleanSetEvent OnBooleanSet;
 		public event NumberSetEvent OnNumberSet;
 		public event StringSetEvent OnStringSet;
+		public event ObjectSetEvent OnObjectSet;
 
 		public WebSocketWrapper() : base("/", true)
 		{
@@ -31,17 +35,21 @@ namespace SvelteWebSocketServer
 		{
 			// On client connect, send all current stored values
 
-			foreach (var kvp in booleans)
+			foreach (KeyValuePair<(string scope, string id), bool> kvp in booleans)
 			{
 				await SendAsync(context, BuildBooleanMessage(kvp.Key.scope, kvp.Key.id, kvp.Value));
 			}
-			foreach (var kvp in numbers)
+			foreach (KeyValuePair<(string scope, string id), float> kvp in numbers)
 			{
 				await SendAsync(context, BuildNumberMessage(kvp.Key.scope, kvp.Key.id, kvp.Value));
 			}
-			foreach (var kvp in strings)
+			foreach (KeyValuePair<(string scope, string id), string> kvp in strings)
 			{
 				await SendAsync(context, BuildStringMessage(kvp.Key.scope, kvp.Key.id, kvp.Value));
+			}
+			foreach (KeyValuePair<(string scope, string id), JObject> kvp in objects)
+			{
+				await SendAsync(context, BuildObjectMessage(kvp.Key.scope, kvp.Key.id, kvp.Value));
 			}
 		}
 
@@ -70,38 +78,49 @@ namespace SvelteWebSocketServer
 				switch ((string)jsonObject["type"])
 				{
 					case "boolean":
-						{
-							var scope = (string)jsonObject["scope"];
-							var id = (string)jsonObject["id"];
-							var value = (bool)jsonObject["value"];
+					{
+						string scope = (string)jsonObject["scope"];
+						string id = (string)jsonObject["id"];
+						bool value = (bool)jsonObject["value"];
 
-							await SetBooleanAsync(scope, id, value);
-							// Trigger event
-							OnBooleanSet?.Invoke(scope, id, value);
-							break;
-						}
+						await SetBooleanAsync(scope, id, value);
+						// Trigger event
+						OnBooleanSet?.Invoke(scope, id, value);
+						break;
+					}
 					case "number":
-						{
-							var scope = (string)jsonObject["scope"];
-							var id = (string)jsonObject["id"];
-							var value = (float)jsonObject["value"];
+					{
+						string scope = (string)jsonObject["scope"];
+						string id = (string)jsonObject["id"];
+						float value = (float)jsonObject["value"];
 
-							await SetNumberAsync(scope, id, value);
-							// Trigger event
-							OnNumberSet?.Invoke(scope, id, value);
-							break;
-						}
+						await SetNumberAsync(scope, id, value);
+						// Trigger event
+						OnNumberSet?.Invoke(scope, id, value);
+						break;
+					}
 					case "string":
-						{
-							var scope = (string)jsonObject["scope"];
-							var id = (string)jsonObject["id"];
-							var value = (string)jsonObject["value"];
+					{
+						string scope = (string)jsonObject["scope"];
+						string id = (string)jsonObject["id"];
+						string value = (string)jsonObject["value"];
 
-							await SetStringAsync(scope, id, value);
-							// Trigger event
-							OnStringSet?.Invoke(scope, id, value);
-							break;
-						}
+						await SetStringAsync(scope, id, value);
+						// Trigger event
+						OnStringSet?.Invoke(scope, id, value);
+						break;
+					}
+					case "object":
+					{
+						string scope = (string)jsonObject["scope"];
+						string id = (string)jsonObject["id"];
+						JObject value = (JObject)jsonObject["value"];
+
+						await SetObjectAsync(scope, id, value);
+						// Trigger event
+						OnObjectSet?.Invoke(scope, id, value);
+						break;
+					}
 				}
 			}
 		}
@@ -123,6 +142,11 @@ namespace SvelteWebSocketServer
 			return $"{{\"scope\":\"{scope}\",\"id\":\"{id}\",\"type\":\"string\",\"value\":\"{value}\"}}";
 		}
 
+		private string BuildObjectMessage(string scope, string id, JObject value)
+		{
+			return $"{{\"scope\":\"{scope}\",\"id\":\"{id}\",\"type\":\"object\",\"value\":{value.ToString(Newtonsoft.Json.Formatting.None)}}}";
+		}
+
 		// Accessors
 
 		/// <summary>
@@ -130,7 +154,7 @@ namespace SvelteWebSocketServer
 		/// </summary>
 		public bool GetBoolean(string scope, string id)
 		{
-			booleans.TryGetValue((scope, id), out var value);
+			booleans.TryGetValue((scope, id), out bool value);
 			return value;
 		}
 
@@ -148,7 +172,7 @@ namespace SvelteWebSocketServer
 		/// </summary>
 		public float GetNumber(string scope, string id)
 		{
-			numbers.TryGetValue((scope, id), out var value);
+			numbers.TryGetValue((scope, id), out float value);
 			return value;
 		}
 
@@ -166,7 +190,7 @@ namespace SvelteWebSocketServer
 		/// </summary>
 		public string GetString(string scope, string id)
 		{
-			strings.TryGetValue((scope, id), out var value);
+			strings.TryGetValue((scope, id), out string value);
 			return value;
 		}
 
@@ -177,6 +201,24 @@ namespace SvelteWebSocketServer
 		{
 			strings[(scope, id)] = value;
 			await BroadcastAsync(BuildStringMessage(scope, id, value));
+		}
+
+		/// <summary>
+		/// Get value or default if undefined
+		/// </summary>
+		public JObject GetObject(string scope, string id)
+		{
+			objects.TryGetValue((scope, id), out JObject value);
+			return value;
+		}
+
+		/// <summary>
+		/// Store value and send to clients
+		/// </summary>
+		public async Task SetObjectAsync(string scope, string id, JObject value)
+		{
+			objects[(scope, id)] = value;
+			await BroadcastAsync(BuildObjectMessage(scope, id, value));
 		}
 	}
 }
