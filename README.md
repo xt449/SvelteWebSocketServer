@@ -50,12 +50,12 @@ The message object is defined as:
 type Message = {
 	scope: string,
 	id: string,
-	type: string,
-	value: boolean | number | string,
+	type: "boolean" | "number" | "string" | "object",
+	value: boolean | number | string | object,
 }
 ```
 The field `scope` identifies the scope of the client it comes from and limits which clients receive it when coming from the server.
-The field `type` determines how the `value` field is interpreted as well as which of the tables (booleans, numbers, or strings) the `scope` and `id` fields will be indexing into.
+The field `type` determines how the `value` field is interpreted as well as which of the tables (booleans, numbers, strings, or objects) the `scope` and `id` fields will be indexing into.
 
 ### Server 
 
@@ -64,7 +64,7 @@ The field `type` determines how the `value` field is interpreted as well as whic
 
 #### Message Received
 1. The incoming text data is parsed as JSON.
-2. The object's `type` field is switched on with the cases `"boolean"`, `"number"`, and `"string"`. If there is no match, the message is discarded.
+2. The object's `type` field is switched on with the cases `"boolean"`, `"number"`, `"string"`, and `"object"`. If there is no match, the message is discarded.
 3. The variable is indexed by the object's `scope` and `id` fields from the dictionary holding the respectively typed variables.
 4. The variable's value is assigned to the object's `value` field, cast to its respective type.
 5. Send all clients a message for the new value.
@@ -75,8 +75,8 @@ The field `type` determines how the `value` field is interpreted as well as whic
 #### Message Received
 1. The incoming text data is parsed as JSON.
 2. The object's `scope` field is checked if it is global ("global") or matches the client's local scope (for example "tp1"). If it does not match, the message is discarded.
-3. The object's `type` field is switched on with the cases `"boolean"`, `"number"`, and `"string"`. If there is no match, the message is discarded.
+3. The object's `type` field is switched on with the cases `"boolean"`, `"number"`, `"string"`, and `"object"`. If there is no match, the message is discarded.
 4. The local Svelte store is indexed by the object's `id` field from the dictionary holding the respectively typed stores.
 5. The store's value is assigned to the object's `value` field, cast to its respective type.
 
-[^1]: This is the behavior expected by this WebSocket client
+[^1]: This is the behavior expected by this WebSocket server
