@@ -39,14 +39,17 @@ namespace SvelteWebSocketServer
 			{
 				await SendAsync(context, BuildBooleanMessage(kvp.Key.scope, kvp.Key.id, kvp.Value));
 			}
+
 			foreach (KeyValuePair<(string scope, string id), float> kvp in numbers)
 			{
 				await SendAsync(context, BuildNumberMessage(kvp.Key.scope, kvp.Key.id, kvp.Value));
 			}
+
 			foreach (KeyValuePair<(string scope, string id), string> kvp in strings)
 			{
 				await SendAsync(context, BuildStringMessage(kvp.Key.scope, kvp.Key.id, kvp.Value));
 			}
+
 			foreach (KeyValuePair<(string scope, string id), JObject> kvp in objects)
 			{
 				await SendAsync(context, BuildObjectMessage(kvp.Key.scope, kvp.Key.id, kvp.Value));
@@ -69,7 +72,7 @@ namespace SvelteWebSocketServer
 					return;
 				}
 
-				// Abort on invalid json object
+				// Abort on invalid message object
 				if (jsonObject["scope"] == null || jsonObject["type"] == null || jsonObject["id"] == null || jsonObject["value"] == null)
 				{
 					return;
@@ -127,22 +130,22 @@ namespace SvelteWebSocketServer
 
 		// Helpers
 
-		private string BuildBooleanMessage(string scope, string id, bool value)
+		private static string BuildBooleanMessage(string scope, string id, bool value)
 		{
 			return $"{{\"scope\":\"{scope}\",\"id\":\"{id}\",\"type\":\"boolean\",\"value\":{(value ? "true" : "false")}}}";
 		}
 
-		private string BuildNumberMessage(string scope, string id, float value)
+		private static string BuildNumberMessage(string scope, string id, float value)
 		{
 			return $"{{\"scope\":\"{scope}\",\"id\":\"{id}\",\"type\":\"number\",\"value\":{value}}}";
 		}
 
-		private string BuildStringMessage(string scope, string id, string value)
+		private static string BuildStringMessage(string scope, string id, string value)
 		{
 			return $"{{\"scope\":\"{scope}\",\"id\":\"{id}\",\"type\":\"string\",\"value\":\"{value}\"}}";
 		}
 
-		private string BuildObjectMessage(string scope, string id, JObject value)
+		private static string BuildObjectMessage(string scope, string id, JObject value)
 		{
 			return $"{{\"scope\":\"{scope}\",\"id\":\"{id}\",\"type\":\"object\",\"value\":{value.ToString(Newtonsoft.Json.Formatting.None)}}}";
 		}
@@ -150,12 +153,11 @@ namespace SvelteWebSocketServer
 		// Accessors
 
 		/// <summary>
-		/// Get value or default if undefined
+		/// Get value or null if undefined
 		/// </summary>
-		public bool GetBoolean(string scope, string id)
+		public bool? GetBoolean(string scope, string id)
 		{
-			booleans.TryGetValue((scope, id), out bool value);
-			return value;
+			return booleans.TryGetValue((scope, id), out bool value) ? value : null;
 		}
 
 		/// <summary>
@@ -168,12 +170,11 @@ namespace SvelteWebSocketServer
 		}
 
 		/// <summary>
-		/// Get value or default if undefined
+		/// Get value or null if undefined
 		/// </summary>
-		public float GetNumber(string scope, string id)
+		public float? GetNumber(string scope, string id)
 		{
-			numbers.TryGetValue((scope, id), out float value);
-			return value;
+			return numbers.TryGetValue((scope, id), out float value) ? value : null;
 		}
 
 		/// <summary>
@@ -186,12 +187,11 @@ namespace SvelteWebSocketServer
 		}
 
 		/// <summary>
-		/// Get value or default if undefined
+		/// Get value or null if undefined
 		/// </summary>
-		public string GetString(string scope, string id)
+		public string? GetString(string scope, string id)
 		{
-			strings.TryGetValue((scope, id), out string value);
-			return value;
+			return strings.TryGetValue((scope, id), out string? value) ? value : null;
 		}
 
 		/// <summary>
@@ -204,12 +204,11 @@ namespace SvelteWebSocketServer
 		}
 
 		/// <summary>
-		/// Get value or default if undefined
+		/// Get value or null if undefined
 		/// </summary>
-		public JObject GetObject(string scope, string id)
+		public JObject? GetObject(string scope, string id)
 		{
-			objects.TryGetValue((scope, id), out JObject value);
-			return value;
+			return objects.TryGetValue((scope, id), out JObject? value) ? value : null;
 		}
 
 		/// <summary>
