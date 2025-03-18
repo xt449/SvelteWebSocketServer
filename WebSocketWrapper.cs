@@ -1,29 +1,20 @@
 ﻿using EmbedIO.WebSockets;
-using Newtonsoft.Json.Linq;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Net.WebSockets;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace SvelteWebSocketServer
 {
 	public class WebSocketWrapper : WebSocketModule
 	{
-		private readonly ConcurrentDictionary<(string scope, string id), bool> booleans = new ConcurrentDictionary<(string, string), bool>();
-		private readonly ConcurrentDictionary<(string scope, string id), float> numbers = new ConcurrentDictionary<(string, string), float>();
-		private readonly ConcurrentDictionary<(string scope, string id), string> strings = new ConcurrentDictionary<(string, string), string>();
-		private readonly ConcurrentDictionary<(string scope, string id), JObject> objects = new ConcurrentDictionary<(string, string), JObject>();
+		private readonly ConcurrentDictionary<(string scope, string id), string> rawJsonStringsDictionary = new();
 
-		public delegate void BooleanSetEvent(string scope, string id, bool value);
-		public delegate void NumberSetEvent(string scope, string id, float value);
-		public delegate void StringSetEvent(string scope, string id, string value);
-		public delegate void ObjectSetEvent(string scope, string id, JObject value);
+		public delegate void ValueSetEvent(string scope, string id, JsonElement value);
 
-		public event BooleanSetEvent OnBooleanSet;
-		public event NumberSetEvent OnNumberSet;
-		public event StringSetEvent OnStringSet;
-		public event ObjectSetEvent OnObjectSet;
+		public event ValueSetEvent? OnValueSet;
 
 		public WebSocketWrapper() : base("/", true)
 		{
@@ -34,25 +25,9 @@ namespace SvelteWebSocketServer
 		protected override async Task OnClientConnectedAsync(IWebSocketContext context)
 		{
 			// On client connect, send all current stored values
-
-			foreach (KeyValuePair<(string scope, string id), bool> kvp in booleans)
+			foreach (var kvp in rawJsonStringsDictionary)
 			{
-				await SendAsync(context, BuildBooleanMessage(kvp.Key.scope, kvp.Key.id, kvp.Value));
-			}
-
-			foreach (KeyValuePair<(string scope, string id), float> kvp in numbers)
-			{
-				await SendAsync(context, BuildNumberMessage(kvp.Key.scope, kvp.Key.id, kvp.Value));
-			}
-
-			foreach (KeyValuePair<(string scope, string id), string> kvp in strings)
-			{
-				await SendAsync(context, BuildStringMessage(kvp.Key.scope, kvp.Key.id, kvp.Value));
-			}
-
-			foreach (KeyValuePair<(string scope, string id), JObject> kvp in objects)
-			{
-				await SendAsync(context, BuildObjectMessage(kvp.Key.scope, kvp.Key.id, kvp.Value));
+				await SendAsync(context, BuildMessageRaw(kvp.Key.scope, kvp.Key.id, kvp.Value));
 			}
 		}
 
@@ -61,163 +36,100 @@ namespace SvelteWebSocketServer
 			// Only handle text-type messages
 			if (result.MessageType == (int)WebSocketMessageType.Text)
 			{
-				JObject jsonObject;
+				JsonElement rootElement;
 				try
 				{
-					jsonObject = JObject.Parse(Encoding.UTF8.GetString(buffer, 0, result.Count));
+					rootElement = JsonDocument.Parse(Encoding.UTF8.GetString(buffer, 0, result.Count)).RootElement;
 				}
 				catch
 				{
-					// Abort on invalid json object
+					// Abort on invalid json
 					return;
 				}
 
-				// Abort on invalid message object
-				if (jsonObject["scope"] == null || jsonObject["type"] == null || jsonObject["id"] == null || jsonObject["value"] == null)
+				if(!rootElement.TryGetProperty("scope", out var scopeElement))
 				{
+					// Abort on missing property
 					return;
 				}
 
-				switch ((string)jsonObject["type"])
+				var scope = scopeElement.GetString();
+
+				if(scope == null)
 				{
-					case "boolean":
-					{
-						string scope = (string)jsonObject["scope"];
-						string id = (string)jsonObject["id"];
-						bool value = (bool)jsonObject["value"];
-
-						await SetBooleanAsync(scope, id, value);
-						// Trigger event
-						OnBooleanSet?.Invoke(scope, id, value);
-						break;
-					}
-					case "number":
-					{
-						string scope = (string)jsonObject["scope"];
-						string id = (string)jsonObject["id"];
-						float value = (float)jsonObject["value"];
-
-						await SetNumberAsync(scope, id, value);
-						// Trigger event
-						OnNumberSet?.Invoke(scope, id, value);
-						break;
-					}
-					case "string":
-					{
-						string scope = (string)jsonObject["scope"];
-						string id = (string)jsonObject["id"];
-						string value = (string)jsonObject["value"];
-
-						await SetStringAsync(scope, id, value);
-						// Trigger event
-						OnStringSet?.Invoke(scope, id, value);
-						break;
-					}
-					case "object":
-					{
-						string scope = (string)jsonObject["scope"];
-						string id = (string)jsonObject["id"];
-						JObject value = (JObject)jsonObject["value"];
-
-						await SetObjectAsync(scope, id, value);
-						// Trigger event
-						OnObjectSet?.Invoke(scope, id, value);
-						break;
-					}
+					// Abort on null value
+					return;
 				}
+
+				if (!rootElement.TryGetProperty("id", out var idElement))
+				{
+					// Abort on missing property
+					return;
+				}
+
+				var id = idElement.GetString();
+
+				if (id == null)
+				{
+					// Abort on null value
+					return;
+				}
+
+				if (!rootElement.TryGetProperty("value", out var valueElement))
+				{
+					// Abort on missing property
+					return;
+				}
+
+				// Set value locally
+				await SetValueAsync(scope, id, valueElement);
+
+				// Trigger event
+				OnValueSet?.Invoke(scope, id, valueElement);
 			}
 		}
 
 		// Helpers
 
-		private static string BuildBooleanMessage(string scope, string id, bool value)
+		private static string BuildMessageRaw(string scope, string id, string rawjsonString)
 		{
-			return $"{{\"scope\":\"{scope}\",\"id\":\"{id}\",\"type\":\"boolean\",\"value\":{(value ? "true" : "false")}}}";
-		}
-
-		private static string BuildNumberMessage(string scope, string id, float value)
-		{
-			return $"{{\"scope\":\"{scope}\",\"id\":\"{id}\",\"type\":\"number\",\"value\":{value}}}";
-		}
-
-		private static string BuildStringMessage(string scope, string id, string value)
-		{
-			return $"{{\"scope\":\"{scope}\",\"id\":\"{id}\",\"type\":\"string\",\"value\":\"{value}\"}}";
-		}
-
-		private static string BuildObjectMessage(string scope, string id, JObject value)
-		{
-			return $"{{\"scope\":\"{scope}\",\"id\":\"{id}\",\"type\":\"object\",\"value\":{value.ToString(Newtonsoft.Json.Formatting.None)}}}";
+			return $"{{\"scope\":\"{scope}\",\"id\":\"{id}\",\"value\":{rawjsonString}}}";
 		}
 
 		// Accessors
 
 		/// <summary>
-		/// Get value or null if undefined
+		/// Get value
 		/// </summary>
-		public bool? GetBoolean(string scope, string id)
+		public bool TryGetValue<T>(string scope, string id, [MaybeNullWhen(false)] out T? value)
 		{
-			return booleans.TryGetValue((scope, id), out bool value) ? value : null;
+			if(rawJsonStringsDictionary.TryGetValue((scope, id), out var jsonString))
+			{
+				value = JsonSerializer.Deserialize<T>(jsonString);
+				return true;
+			}
+
+			value = default;
+			return false;
+		}
+
+		/// <summary>
+		/// Get value
+		/// </summary>
+		public T? GetValue<T>(string scope, string id)
+		{
+			return JsonSerializer.Deserialize<T>(rawJsonStringsDictionary[(scope, id)]);
 		}
 
 		/// <summary>
 		/// Store value and send to clients
 		/// </summary>
-		public async Task SetBooleanAsync(string scope, string id, bool value)
+		public async Task SetValueAsync<T>(string scope, string id, T value)
 		{
-			booleans[(scope, id)] = value;
-			await BroadcastAsync(BuildBooleanMessage(scope, id, value));
-		}
+			var jsonString = JsonSerializer.Serialize(value);
 
-		/// <summary>
-		/// Get value or null if undefined
-		/// </summary>
-		public float? GetNumber(string scope, string id)
-		{
-			return numbers.TryGetValue((scope, id), out float value) ? value : null;
-		}
-
-		/// <summary>
-		/// Store value and send to clients
-		/// </summary>
-		public async Task SetNumberAsync(string scope, string id, float value)
-		{
-			numbers[(scope, id)] = value;
-			await BroadcastAsync(BuildNumberMessage(scope, id, value));
-		}
-
-		/// <summary>
-		/// Get value or null if undefined
-		/// </summary>
-		public string? GetString(string scope, string id)
-		{
-			return strings.TryGetValue((scope, id), out string? value) ? value : null;
-		}
-
-		/// <summary>
-		/// Store value and send to clients
-		/// </summary>
-		public async Task SetStringAsync(string scope, string id, string value)
-		{
-			strings[(scope, id)] = value;
-			await BroadcastAsync(BuildStringMessage(scope, id, value));
-		}
-
-		/// <summary>
-		/// Get value or null if undefined
-		/// </summary>
-		public JObject? GetObject(string scope, string id)
-		{
-			return objects.TryGetValue((scope, id), out JObject? value) ? value : null;
-		}
-
-		/// <summary>
-		/// Store value and send to clients
-		/// </summary>
-		public async Task SetObjectAsync(string scope, string id, JObject value)
-		{
-			objects[(scope, id)] = value;
-			await BroadcastAsync(BuildObjectMessage(scope, id, value));
+			rawJsonStringsDictionary[(scope, id)] = jsonString;
+			await BroadcastAsync(BuildMessageRaw(scope, id, jsonString));
 		}
 	}
 }
