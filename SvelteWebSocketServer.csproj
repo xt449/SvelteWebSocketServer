@@ -13,7 +13,7 @@
     <PackageTags>svelte;websocket</PackageTags>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <Copyright>Copyright 2024</Copyright>
+    <Copyright>Copyright 2025</Copyright>
     <GenerateDocumentationFile>False</GenerateDocumentationFile>
     <Authors>Jonathan Talcott</Authors>
     <Version>$(AssemblyVersion)</Version>
