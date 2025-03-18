@@ -10,11 +10,11 @@ namespace SvelteWebSocketServer
 {
 	public class WebSocketWrapper : WebSocketModule
 	{
+		public delegate void JsonSetHandler(string scope, string id, JsonElement value);
+
 		private readonly ConcurrentDictionary<(string scope, string id), string> rawJsonStringsDictionary = new();
 
-		public delegate void ValueSetEvent(string scope, string id, JsonElement value);
-
-		public event ValueSetEvent? OnValueSet;
+		public event JsonSetHandler? OnJsonSet;
 
 		public WebSocketWrapper() : base("/", true)
 		{
@@ -47,7 +47,7 @@ namespace SvelteWebSocketServer
 					return;
 				}
 
-				if(!rootElement.TryGetProperty("scope", out var scopeElement))
+				if (!rootElement.TryGetProperty("scope", out var scopeElement))
 				{
 					// Abort on missing property
 					return;
@@ -55,7 +55,7 @@ namespace SvelteWebSocketServer
 
 				var scope = scopeElement.GetString();
 
-				if(scope == null)
+				if (scope == null)
 				{
 					// Abort on null value
 					return;
@@ -85,7 +85,7 @@ namespace SvelteWebSocketServer
 				await SetValueAsync(scope, id, valueElement);
 
 				// Trigger event
-				OnValueSet?.Invoke(scope, id, valueElement);
+				OnJsonSet?.Invoke(scope, id, valueElement);
 			}
 		}
 
@@ -99,11 +99,11 @@ namespace SvelteWebSocketServer
 		// Accessors
 
 		/// <summary>
-		/// Get value
+		/// Attempts to retrieve a stored value
 		/// </summary>
 		public bool TryGetValue<T>(string scope, string id, [MaybeNullWhen(false)] out T? value)
 		{
-			if(rawJsonStringsDictionary.TryGetValue((scope, id), out var jsonString))
+			if (rawJsonStringsDictionary.TryGetValue((scope, id), out var jsonString))
 			{
 				value = JsonSerializer.Deserialize<T>(jsonString);
 				return true;
@@ -114,15 +114,16 @@ namespace SvelteWebSocketServer
 		}
 
 		/// <summary>
-		/// Get value
+		/// Retrieves a stored value, throwing an exception if it does not exist.
 		/// </summary>
+		/// <exception cref="System.Collections.Generic.KeyNotFoundException">Thrown if the value does not exist.</exception>
 		public T? GetValue<T>(string scope, string id)
 		{
 			return JsonSerializer.Deserialize<T>(rawJsonStringsDictionary[(scope, id)]);
 		}
 
 		/// <summary>
-		/// Store value and send to clients
+		/// Store value and send to all clients
 		/// </summary>
 		public async Task SetValueAsync<T>(string scope, string id, T value)
 		{
