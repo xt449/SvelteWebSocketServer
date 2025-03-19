@@ -81,7 +81,7 @@ The field `id` is the primary identifier and determines where the `value` field 
 #### Message Received
 1. The incoming text data is parsed as JSON.
 2. The object's `scope` field is checked if it is global ("global") or matches the client's local scope (for example "tp1"). If it does not match, the message is discarded.
-4. The local Svelte store is indexed by the object's `id` field from the dictionary holding the respectively typed stores.
-5. The store's value is assigned to the object's `value` field.
+3. The local Svelte store is indexed by the object's `id` field from the dictionary holding the respectively typed stores.
+4. The store's value is assigned to the object's `value` field.
 
 [^1]: This is the behavior expected by this WebSocket server
