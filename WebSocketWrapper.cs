@@ -81,8 +81,13 @@ namespace SvelteWebSocketServer
 					return;
 				}
 
+				var rawJsonString = valueElement.GetRawText();
+
 				// Set value locally
-				await SetValueAsync(scope, id, valueElement);
+				rawJsonStringsDictionary[(scope, id)] = rawJsonString;
+
+				// Distribute message to clients
+				await BroadcastAsync(BuildMessageRaw(scope, id, rawJsonString));
 
 				// Trigger event
 				OnJsonSet?.Invoke(scope, id, valueElement);
@@ -127,10 +132,13 @@ namespace SvelteWebSocketServer
 		/// </summary>
 		public async Task SetValueAsync<T>(string scope, string id, T value)
 		{
-			var jsonString = JsonSerializer.Serialize(value);
+			var rawJsonString = JsonSerializer.Serialize(value);
 
-			rawJsonStringsDictionary[(scope, id)] = jsonString;
-			await BroadcastAsync(BuildMessageRaw(scope, id, jsonString));
+			// Set value locally
+			rawJsonStringsDictionary[(scope, id)] = rawJsonString;
+
+			// Distribute message to clients
+			await BroadcastAsync(BuildMessageRaw(scope, id, rawJsonString));
 		}
 	}
 }
