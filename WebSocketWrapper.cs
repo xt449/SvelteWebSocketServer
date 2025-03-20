@@ -13,7 +13,12 @@ namespace SvelteWebSocketServer
 	{
 		public delegate void JsonSetHandler(string scope, string id, JsonElement value);
 
-		private readonly ConcurrentDictionary<(string scope, string id), string> rawJsonStringsDictionary = new();
+		/// <summary>
+		/// Contains "stores".
+		/// Key: store ID.
+		/// Value: store value as raw JSON string.
+		/// </summary>
+		private readonly ConcurrentDictionary<string, string> rawJsonStringStoresDictionary = new();
 
 		public event JsonSetHandler? OnJsonSet;
 
@@ -26,9 +31,9 @@ namespace SvelteWebSocketServer
 		protected override async Task OnClientConnectedAsync(IWebSocketContext context)
 		{
 			// On client connect, send all current stored values
-			foreach (var kvp in rawJsonStringsDictionary)
+			foreach (var store in rawJsonStringStoresDictionary)
 			{
-				await SendAsync(context, BuildMessageRaw(kvp.Key.scope, kvp.Key.id, kvp.Value));
+				await SendAsync(context, BuildMessageRaw(store.Key, store.Value));
 			}
 		}
 
@@ -84,12 +89,6 @@ namespace SvelteWebSocketServer
 
 				var rawJsonString = valueElement.GetRawText();
 
-				// Set value locally
-				rawJsonStringsDictionary[(scope, id)] = rawJsonString;
-
-				// Distribute message to clients
-				await BroadcastAsync(BuildMessageRaw(scope, id, rawJsonString));
-
 				// Trigger event
 				OnJsonSet?.Invoke(scope, id, valueElement);
 			}
@@ -97,9 +96,9 @@ namespace SvelteWebSocketServer
 
 		// Helpers
 
-		private static string BuildMessageRaw(string scope, string id, string rawjsonString)
+		private static string BuildMessageRaw(string id, string rawjsonString)
 		{
-			return $"{{\"scope\":\"{scope}\",\"id\":\"{id}\",\"value\":{rawjsonString}}}";
+			return $"{{\"scope\":\"global\",\"id\":\"{id}\",\"value\":{rawjsonString}}}";
 		}
 
 		// Accessors
@@ -107,9 +106,9 @@ namespace SvelteWebSocketServer
 		/// <summary>
 		/// Attempts to retrieve a stored value
 		/// </summary>
-		public bool TryGetValue<T>(string scope, string id, [MaybeNullWhen(false)] out T? value)
+		public bool TryGetValue<T>(string id, [MaybeNullWhen(false)] out T? value)
 		{
-			if (rawJsonStringsDictionary.TryGetValue((scope, id), out var jsonString))
+			if (rawJsonStringStoresDictionary.TryGetValue(id, out var jsonString))
 			{
 				value = JsonSerializer.Deserialize<T>(jsonString);
 				return true;
@@ -123,23 +122,23 @@ namespace SvelteWebSocketServer
 		/// Retrieves a stored value, throwing an exception if it does not exist.
 		/// </summary>
 		/// <exception cref="System.Collections.Generic.KeyNotFoundException">Thrown if the value does not exist.</exception>
-		public T? GetValue<T>(string scope, string id)
+		public T? GetValue<T>(string id)
 		{
-			return JsonSerializer.Deserialize<T>(rawJsonStringsDictionary[(scope, id)]);
+			return JsonSerializer.Deserialize<T>(rawJsonStringStoresDictionary[id]);
 		}
 
 		/// <summary>
 		/// Stores value and sends to all clients
 		/// </summary>
-		public async Task SetValueAsync<T>(string scope, string id, T value)
+		public async Task SetValueAsync<T>(string id, T value)
 		{
 			var rawJsonString = JsonSerializer.Serialize(value);
 
 			// Set value locally
-			rawJsonStringsDictionary[(scope, id)] = rawJsonString;
+			rawJsonStringStoresDictionary[id] = rawJsonString;
 
 			// Distribute message to clients
-			await BroadcastAsync(BuildMessageRaw(scope, id, rawJsonString));
+			await BroadcastAsync(BuildMessageRaw(id, rawJsonString));
 		}
 
 		/// <summary>
@@ -147,16 +146,16 @@ namespace SvelteWebSocketServer
 		/// Applies updater function.
 		/// Store new value and sends to all clients.
 		/// </summary>
-		public async Task<bool> TryUpdateValueAsync<T, U>(string scope, string id, Func<T?, T> updater)
+		public async Task<bool> TryUpdateValueAsync<T>(string id, Func<T?, T> updater)
 		{
 			// Retrieve the existing value
-			if (!TryGetValue<T>(scope, id, out var existingValue))
+			if (!TryGetValue<T>(id, out var existingValue))
 			{
 				return false;
 			}
 
 			// Store the updated value
-			await SetValueAsync(scope, id, updater(existingValue));
+			await SetValueAsync(id, updater(existingValue));
 
 			return true;
 		}
