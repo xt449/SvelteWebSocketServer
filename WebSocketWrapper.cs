@@ -1,4 +1,5 @@
 ﻿using EmbedIO.WebSockets;
+using System;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.WebSockets;
@@ -128,7 +129,7 @@ namespace SvelteWebSocketServer
 		}
 
 		/// <summary>
-		/// Store value and send to all clients
+		/// Stores value and sends to all clients
 		/// </summary>
 		public async Task SetValueAsync<T>(string scope, string id, T value)
 		{
@@ -139,6 +140,25 @@ namespace SvelteWebSocketServer
 
 			// Distribute message to clients
 			await BroadcastAsync(BuildMessageRaw(scope, id, rawJsonString));
+		}
+
+		/// <summary>
+		/// Retrieves value, returns false if it does not exist.
+		/// Applies updater function.
+		/// Store new value and sends to all clients.
+		/// </summary>
+		public async Task<bool> TryUpdatePropertyAsync<T, U>(string scope, string id, Func<T?, T> updater)
+		{
+			// Retrieve the existing value
+			if (!TryGetValue<T>(scope, id, out var existingValue))
+			{
+				return false;
+			}
+
+			// Store the updated value
+			await SetValueAsync(scope, id, updater(existingValue));
+
+			return true;
 		}
 	}
 }
