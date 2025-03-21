@@ -8,24 +8,21 @@ Basic C# implementation of a WebSocket server for use with [svelte-websocket-sto
 
 Basic Initialization
 ```cs
+using EmbedIO;
 using SvelteWebSocketServer;
 
-var wss = new WebSocketServer();
-var wsw = wss.webSocketWrapper; // Main entry-point
-
-wss.Start(); // Non-blocking
+var wsw = new WebSocketWrapper(); // Main entry-point
+var ws = new WebServer().WithModule(webSocketWrapper);
 ```
 
 Initialization using the WebSocketWrapperListener for easy event handling
 ```cs
-
+using EmbedIO;
 using SvelteWebSocketServer;
 
-var wss = new WebSocketServer();
-var wsw = wss.webSocketWrapper; // Main entry-point
+var wsw = new WebSocketWrapper(); // Main entry-point
+var ws = new WebServer().WithModule(webSocketWrapper);
 var wswListener = new WebSocketWrapperListener(wsw);
-
-wss.Start(); // Non-blocking
 ```
 
 Basic event handling
@@ -36,14 +33,16 @@ wsw.OnJsonSet += (scope, id, value) => ...
 Event handling using WebSocketWrapperListener
 ```cs
 // Raw JSON value with exact ID match
-wswListener.AddHandler("tp1", "some.state", (scope, id, value) => ... );
+wswListener.AddHandler("some.state", (scope, id, value) => ... );
 // Typed value with exact ID match
-wswListener.AddHandler<float>("tp1", new Regex("some\\.(.+?)\\.state"), (scope, match, value) => ... );
+wswListener.AddHandler<float>("some.state", (scope, match, value) => ... );
+
+// These regex handlers are now deprecated. Please just use wsw.OnJsonSet instead.
 
 // Raw JSON value with regex match
-wswListener.AddHandler("tp1", "some.state", (scope, id, value) => ... );
+wswListener.AddHandler(new Regex("some\\.(.+?)\\.state"), (scope, id, value) => ... );
 // Typed value with regex match
-wswListener.AddHandler<float>("tp1", new Regex("some\\.(.+?)\\.state"), (scope, match, value) => ... );
+wswListener.AddHandler<float>(new Regex("some\\.(.+?)\\.state"), (scope, match, value) => ... );
 ```
 
 ## WebSocket Message Format
@@ -61,7 +60,7 @@ type Message = {
 	value: Json;
 }
 ```
-The field `scope` identifies the scope of the client it comes from and limits which clients receive it when coming from the server.
+The field `scope` identifies the scope of the client it comes from ~~and limits which clients receive it when coming from the server~~.
 The field `id` is the primary identifier and determines where the `value` field is stored.
 
 ### Server 
