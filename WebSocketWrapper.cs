@@ -104,6 +104,14 @@ namespace SvelteWebSocketServer
 		// Accessors
 
 		/// <summary>
+		/// Attempts to retrieve a stored value or returns <paramref name="defaultValue"/> if it does not exist.
+		/// </summary>
+		public T? GetValueOrDefault<T>(string id, T? defaultValue = default)
+		{
+			return TryGetValue(id, out T? value) ? value : defaultValue;
+		}
+
+		/// <summary>
 		/// Attempts to retrieve a stored value
 		/// </summary>
 		public bool TryGetValue<T>(string id, [MaybeNullWhen(false)] out T? value)
