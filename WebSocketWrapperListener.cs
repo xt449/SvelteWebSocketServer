@@ -112,11 +112,13 @@ namespace SvelteWebSocketServer
 		/// <summary>
 		/// Adds a handler for processing raw JSON values where there is a regex match.
 		/// </summary>
+		[Obsolete("Use WebSocketWrapper#OnJsonSet instead")]
 		public void AddHandler(Regex regex, RegexJsonSetHandler handler) => regexJsonHandlers.Add((regex, handler));
 
 		/// <summary>
 		/// Adds a handler for processing deserialized values where there is a regex match.
 		/// </summary>
+		[Obsolete("Use WebSocketWrapper#OnJsonSet instead")]
 		public void AddHandler<T>(Regex regex, RegexTypedSetHandler<T> handler) => regexTypedHandlers.Add((regex, handler));
 	}
 }
