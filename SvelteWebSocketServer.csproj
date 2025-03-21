@@ -8,8 +8,8 @@
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Description>Basic .NET implementation of a WebSocket server for svelte-websocket-stores NPM library</Description>
     <RepositoryUrl>https://github.com/xt449/SvelteWebSocketServer</RepositoryUrl>
-    <AssemblyVersion>2.4.0.0</AssemblyVersion>
-	<PackageVersion>2.4.0</PackageVersion>
+    <AssemblyVersion>2.4.1.0</AssemblyVersion>
+	<PackageVersion>2.4.1</PackageVersion>
     <PackageTags>svelte;websocket</PackageTags>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
