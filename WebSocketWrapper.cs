@@ -154,7 +154,7 @@ namespace SvelteWebSocketServer
 		/// Applies updater function.
 		/// Store new value and sends to all clients.
 		/// </summary>
-		public async Task<bool> TryUpdateValueAsync<T>(string id, Func<T?, T> updater)
+		public async Task<bool> TryUpdateValueAsync<T>(string id, Func<T?, T?> updater)
 		{
 			// Retrieve the existing value
 			if (!TryGetValue<T>(id, out var existingValue))
