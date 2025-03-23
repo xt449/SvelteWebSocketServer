@@ -27,7 +27,7 @@ namespace SvelteWebSocketServer
 		private void OnJsonSet(string scope, string id, JsonElement jsonElement)
 		{
 			// Invoke handlers that process raw JSON values for exact ID matches
-			if (this.jsonHandlers.TryGetValue(id, out var jsonHandlers))
+			if (this.jsonHandlers.TryGetValue(id, out List<JsonSetHandler>? jsonHandlers))
 			{
 				foreach (JsonSetHandler handler in jsonHandlers)
 				{
@@ -36,7 +36,7 @@ namespace SvelteWebSocketServer
 			}
 
 			// Invoke handlers that process deserialized values for exact ID matches
-			if (this.typedHandlers.TryGetValue(id, out var typedHandlers))
+			if (this.typedHandlers.TryGetValue(id, out List<Delegate>? typedHandlers))
 			{
 				foreach (Delegate handler in typedHandlers)
 				{
@@ -84,7 +84,7 @@ namespace SvelteWebSocketServer
 		/// </summary>
 		public void AddHandler(string id, JsonSetHandler handler)
 		{
-			if (jsonHandlers.TryGetValue(id, out var handlers))
+			if (jsonHandlers.TryGetValue(id, out List<JsonSetHandler>? handlers))
 			{
 				handlers.Add(handler);
 			}
@@ -99,7 +99,7 @@ namespace SvelteWebSocketServer
 		/// </summary>
 		public void AddHandler<T>(string id, TypedSetHandler<T> handler)
 		{
-			if (typedHandlers.TryGetValue(id, out var handlers))
+			if (typedHandlers.TryGetValue(id, out List<Delegate>? handlers))
 			{
 				handlers.Add(handler);
 			}

@@ -31,9 +31,9 @@ namespace SvelteWebSocketServer
 		protected override async Task OnClientConnectedAsync(IWebSocketContext context)
 		{
 			// On client connect, send all current stored values
-			foreach (var store in rawJsonStringStoresDictionary)
+			foreach ((string key, string value) in rawJsonStringStoresDictionary)
 			{
-				await SendAsync(context, BuildMessageRaw(store.Key, store.Value));
+				await SendAsync(context, BuildMessageRaw(key, value));
 			}
 		}
 
@@ -53,13 +53,13 @@ namespace SvelteWebSocketServer
 					return;
 				}
 
-				if (!rootElement.TryGetProperty("scope", out var scopeElement))
+				if (!rootElement.TryGetProperty("scope", out JsonElement scopeElement))
 				{
 					// Abort on missing property
 					return;
 				}
 
-				var scope = scopeElement.GetString();
+				string? scope = scopeElement.GetString();
 
 				if (scope == null)
 				{
@@ -67,13 +67,13 @@ namespace SvelteWebSocketServer
 					return;
 				}
 
-				if (!rootElement.TryGetProperty("id", out var idElement))
+				if (!rootElement.TryGetProperty("id", out JsonElement idElement))
 				{
 					// Abort on missing property
 					return;
 				}
 
-				var id = idElement.GetString();
+				string? id = idElement.GetString();
 
 				if (id == null)
 				{
@@ -81,13 +81,11 @@ namespace SvelteWebSocketServer
 					return;
 				}
 
-				if (!rootElement.TryGetProperty("value", out var valueElement))
+				if (!rootElement.TryGetProperty("value", out JsonElement valueElement))
 				{
 					// Abort on missing property
 					return;
 				}
-
-				var rawJsonString = valueElement.GetRawText();
 
 				// Trigger event
 				OnJsonSet?.Invoke(scope, id, valueElement);
@@ -116,7 +114,7 @@ namespace SvelteWebSocketServer
 		/// </summary>
 		public bool TryGetValue<T>(string id, [MaybeNullWhen(false)] out T? value)
 		{
-			if (rawJsonStringStoresDictionary.TryGetValue(id, out var jsonString))
+			if (rawJsonStringStoresDictionary.TryGetValue(id, out string? jsonString))
 			{
 				value = JsonSerializer.Deserialize<T>(jsonString);
 				return true;
@@ -140,7 +138,7 @@ namespace SvelteWebSocketServer
 		/// </summary>
 		public async Task SetValueAsync<T>(string id, T value)
 		{
-			var rawJsonString = JsonSerializer.Serialize(value);
+			string rawJsonString = JsonSerializer.Serialize(value);
 
 			// Set value locally
 			rawJsonStringStoresDictionary[id] = rawJsonString;
@@ -157,7 +155,7 @@ namespace SvelteWebSocketServer
 		public async Task<bool> TryUpdateValueAsync<T>(string id, Func<T?, T?> updater)
 		{
 			// Retrieve the existing value
-			if (!TryGetValue<T>(id, out var existingValue))
+			if (!TryGetValue<T>(id, out T? existingValue))
 			{
 				return false;
 			}
