@@ -1,7 +1,5 @@
 ﻿using EmbedIO.WebSockets;
-using System;
 using System.Collections.Concurrent;
-using System.Diagnostics.CodeAnalysis;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
@@ -11,14 +9,12 @@ namespace SvelteWebSocketServer
 {
 	public class WebSocketWrapper : WebSocketModule
 	{
-		public delegate void JsonSetHandler(string scope, string id, JsonElement value);
-
 		/// <summary>
-		/// Contains "stores".
-		/// Key: store ID.
-		/// Value: store value as raw JSON string.
+		/// Track the values sent by the server so that new clients connecting can be instantly updated.
+		/// <br/>Key: store ID.
+		/// <br/>Value: store value as raw JSON string.
 		/// </summary>
-		private readonly ConcurrentDictionary<string, string> rawJsonStringStoresDictionary = new();
+		private readonly ConcurrentDictionary<(string scope, string id), string> rawJsonStringStoresDictionary = new();
 
 		public event JsonSetHandler? OnJsonSet;
 
@@ -31,9 +27,9 @@ namespace SvelteWebSocketServer
 		protected override async Task OnClientConnectedAsync(IWebSocketContext context)
 		{
 			// On client connect, send all current stored values
-			foreach ((string key, string value) in rawJsonStringStoresDictionary)
+			foreach (((string scope, string id), string value) in rawJsonStringStoresDictionary)
 			{
-				await SendAsync(context, BuildMessageRaw(key, value));
+				await SendAsync(context, BuildMessageRaw(scope, id, value));
 			}
 		}
 
@@ -92,78 +88,28 @@ namespace SvelteWebSocketServer
 			}
 		}
 
-		// Helpers
-
-		private static string BuildMessageRaw(string id, string rawjsonString)
-		{
-			return $"{{\"scope\":\"global\",\"id\":\"{id}\",\"value\":{rawjsonString}}}";
-		}
-
 		// Accessors
 
-		/// <summary>
-		/// Attempts to retrieve a stored value or returns <paramref name="defaultValue"/> if it does not exist.
-		/// </summary>
-		public T? GetValueOrDefault<T>(string id, T? defaultValue = default)
-		{
-			return TryGetValue(id, out T? value) ? value : defaultValue;
-		}
-
-		/// <summary>
-		/// Attempts to retrieve a stored value
-		/// </summary>
-		public bool TryGetValue<T>(string id, [MaybeNullWhen(false)] out T? value)
-		{
-			if (rawJsonStringStoresDictionary.TryGetValue(id, out string? jsonString))
-			{
-				value = JsonSerializer.Deserialize<T>(jsonString);
-				return true;
-			}
-
-			value = default;
-			return false;
-		}
-
-		/// <summary>
-		/// Retrieves a stored value, throwing an exception if it does not exist.
-		/// </summary>
-		/// <exception cref="System.Collections.Generic.KeyNotFoundException">Thrown if the value does not exist.</exception>
-		public T? GetValue<T>(string id)
-		{
-			return JsonSerializer.Deserialize<T>(rawJsonStringStoresDictionary[id]);
-		}
-
-		/// <summary>
-		/// Stores value and sends to all clients
-		/// </summary>
-		public async Task SetValueAsync<T>(string id, T value)
+		public async Task SendValueAsync<T>(string scope, string id, T value)
 		{
 			string rawJsonString = JsonSerializer.Serialize(value);
 
 			// Set value locally
-			rawJsonStringStoresDictionary[id] = rawJsonString;
+			rawJsonStringStoresDictionary[(scope, id)] = rawJsonString;
 
 			// Distribute message to clients
-			await BroadcastAsync(BuildMessageRaw(id, rawJsonString));
+			await BroadcastAsync(BuildMessageRaw(scope, id, rawJsonString));
 		}
 
-		/// <summary>
-		/// Retrieves value, returns false if it does not exist.
-		/// Applies updater function.
-		/// Store new value and sends to all clients.
-		/// </summary>
-		public async Task<bool> TryUpdateValueAsync<T>(string id, Func<T?, T?> updater)
+		public async Task SendGlobalValueAsync<T>(string id, T value) => await SendValueAsync("global", id, value);
+
+		// Helpers
+
+		public delegate void JsonSetHandler(string scope, string id, JsonElement value);
+
+		private static string BuildMessageRaw(string scope, string id, string rawjsonString)
 		{
-			// Retrieve the existing value
-			if (!TryGetValue<T>(id, out T? existingValue))
-			{
-				return false;
-			}
-
-			// Store the updated value
-			await SetValueAsync(id, updater(existingValue));
-
-			return true;
+			return $"{{\"scope\":\"{scope}\",\"id\":\"{id}\",\"value\":{rawjsonString}}}";
 		}
 	}
 }
