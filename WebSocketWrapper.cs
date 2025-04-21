@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 public class WebSocketWrapper : WebSocketModule
 {
 	/// <summary>
-	/// Track the values sent by the server so that new clients connecting can be instantly updated.
+	/// Cache the values sent by the server so that new clients connecting can be instantly updated.
 	/// <br/>Key: store ID.
 	/// <br/>Value: store value as raw JSON string.
 	/// </summary>
@@ -26,7 +26,7 @@ public class WebSocketWrapper : WebSocketModule
 
 	protected override async Task OnClientConnectedAsync(IWebSocketContext context)
 	{
-		// On client connect, send all current stored values
+		// On client connect, send all cached values
 		foreach (((string scope, string id), string value) in rawJsonStringStoresDictionary)
 		{
 			await SendAsync(context, BuildMessageRaw(scope, id, value));
@@ -94,7 +94,7 @@ public class WebSocketWrapper : WebSocketModule
 	{
 		string rawJsonString = JsonSerializer.Serialize(value);
 
-		// Set value locally
+		// Cache value for new/reconnecting clients
 		rawJsonStringStoresDictionary[(scope, id)] = rawJsonString;
 
 		// Distribute message to clients
