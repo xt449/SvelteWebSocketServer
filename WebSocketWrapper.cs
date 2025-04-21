@@ -103,6 +103,13 @@ public class WebSocketWrapper : WebSocketModule
 
 	public async Task SendGlobalValueAsync<T>(string id, T value) => await SendValueAsync("global", id, value);
 
+	public T? GetCachedOutgoingValue<T>(string scope, string id)
+	{
+		return JsonSerializer.Deserialize<T>(rawJsonStringStoresDictionary[(scope, id)]);
+	}
+
+	public T? GetCachedOutgoingGlobalValue<T>(string id) => GetCachedOutgoingValue<T>("global", id);
+
 	// Helpers
 
 	public delegate void JsonSetHandler(string scope, string id, JsonElement value);
