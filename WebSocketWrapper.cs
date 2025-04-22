@@ -92,6 +92,9 @@ public class WebSocketWrapper : WebSocketModule
 
 	// Accessors
 
+	/// <summary>
+	/// Send value with given scope and id to clients
+	/// </summary>
 	public async Task SendValueAsync<T>(string scope, string id, T value)
 	{
 		string rawJsonString = JsonSerializer.Serialize(value);
@@ -103,8 +106,14 @@ public class WebSocketWrapper : WebSocketModule
 		await BroadcastAsync(BuildMessageRaw(scope, id, rawJsonString));
 	}
 
+	/// <summary>
+	/// Send value with global scope and given id to clients
+	/// </summary>
 	public async Task SendGlobalValueAsync<T>(string id, T value) => await SendValueAsync("global", id, value);
 
+	/// <summary>
+	/// Get cached value with given scope and id
+	/// </summary>
 	public bool TryGetCachedOutgoingValue<T>(string scope, string id, [MaybeNullWhen(false)] out T? value)
 	{
 		// Get value from cache if exists
@@ -118,15 +127,27 @@ public class WebSocketWrapper : WebSocketModule
 		return false;
 	}
 
+	/// <summary>
+	/// Get cached value with global scope and given id
+	/// </summary>
 	public bool TryGetCachedOutgoingGlobalValue<T>(string id, [MaybeNullWhen(false)] out T? value) => TryGetCachedOutgoingValue("global", id, out value);
 
+	/// <summary>
+	/// Get cached value with given scope and id
+	/// </summary>
 	public T? GetCachedOutgoingValue<T>(string scope, string id)
 	{
 		return JsonSerializer.Deserialize<T>(rawJsonStringOutgoingCache[(scope, id)]);
 	}
 
+	/// <summary>
+	/// Get cached value with global scope and given id
+	/// </summary>
 	public T? GetCachedOutgoingGlobalValue<T>(string id) => GetCachedOutgoingValue<T>("global", id);
 
+	/// <summary>
+	/// Get cached value with given scope and id. Apply given updater. Send new value.
+	/// </summary>
 	public async Task<bool> UpdateValueAsync<T>(string scope, string id, Func<T?, T> updater)
 	{
 		// Retrieve the existing value
@@ -141,6 +162,9 @@ public class WebSocketWrapper : WebSocketModule
 		return true;
 	}
 
+	/// <summary>
+	/// Get cached value with global scope and given id. Apply given updater. Send new value.
+	/// </summary>
 	public async Task<bool> UpdateGlobalValueAsync<T>(string id, Func<T?, T> updater) => await UpdateValueAsync("global", id, updater);
 
 	// Helpers
