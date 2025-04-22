@@ -148,7 +148,7 @@ public class WebSocketWrapper : WebSocketModule
 	/// <summary>
 	/// Get cached value with given scope and id. Apply given updater. Send new value.
 	/// </summary>
-	public async Task<bool> UpdateValueAsync<T>(string scope, string id, Func<T?, T> updater)
+	public async Task<bool> TryUpdateValueAsync<T>(string scope, string id, Func<T?, T> updater)
 	{
 		// Retrieve the existing value
 		if (!TryGetCachedOutgoingValue(scope, id, out T? existingValue))
@@ -165,7 +165,7 @@ public class WebSocketWrapper : WebSocketModule
 	/// <summary>
 	/// Get cached value with global scope and given id. Apply given updater. Send new value.
 	/// </summary>
-	public async Task<bool> UpdateGlobalValueAsync<T>(string id, Func<T?, T> updater) => await UpdateValueAsync("global", id, updater);
+	public async Task<bool> TryUpdateGlobalValueAsync<T>(string id, Func<T?, T> updater) => await TryUpdateValueAsync("global", id, updater);
 
 	// Helpers
 
