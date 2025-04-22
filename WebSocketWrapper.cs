@@ -1,7 +1,9 @@
 ﻿namespace SvelteWebSocketServer;
 
 using EmbedIO.WebSockets;
+using System;
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
@@ -14,7 +16,7 @@ public class WebSocketWrapper : WebSocketModule
 	/// <br/>Key: store ID.
 	/// <br/>Value: store value as raw JSON string.
 	/// </summary>
-	private readonly ConcurrentDictionary<(string scope, string id), string> rawJsonStringStoresDictionary = new();
+	private readonly ConcurrentDictionary<(string scope, string id), string> rawJsonStringOutgoingCache = new();
 
 	public event JsonSetHandler? OnJsonSet;
 
@@ -27,7 +29,7 @@ public class WebSocketWrapper : WebSocketModule
 	protected override async Task OnClientConnectedAsync(IWebSocketContext context)
 	{
 		// On client connect, send all cached values
-		foreach (((string scope, string id), string value) in rawJsonStringStoresDictionary)
+		foreach (((string scope, string id), string value) in rawJsonStringOutgoingCache)
 		{
 			await SendAsync(context, BuildMessageRaw(scope, id, value));
 		}
@@ -95,7 +97,7 @@ public class WebSocketWrapper : WebSocketModule
 		string rawJsonString = JsonSerializer.Serialize(value);
 
 		// Cache value for new/reconnecting clients
-		rawJsonStringStoresDictionary[(scope, id)] = rawJsonString;
+		rawJsonStringOutgoingCache[(scope, id)] = rawJsonString;
 
 		// Distribute message to clients
 		await BroadcastAsync(BuildMessageRaw(scope, id, rawJsonString));
@@ -103,12 +105,43 @@ public class WebSocketWrapper : WebSocketModule
 
 	public async Task SendGlobalValueAsync<T>(string id, T value) => await SendValueAsync("global", id, value);
 
+	public bool TryGetCachedOutgoingValue<T>(string scope, string id, [MaybeNullWhen(false)] out T? value)
+	{
+		// Get value from cache if exists
+		if (rawJsonStringOutgoingCache.TryGetValue((scope, id), out string? rawjsonString))
+		{
+			value = JsonSerializer.Deserialize<T>(rawjsonString);
+			return true;
+		}
+
+		value = default;
+		return false;
+	}
+
+	public bool TryGetCachedOutgoingGlobalValue<T>(string id, [MaybeNullWhen(false)] out T? value) => TryGetCachedOutgoingValue("global", id, out value);
+
 	public T? GetCachedOutgoingValue<T>(string scope, string id)
 	{
-		return JsonSerializer.Deserialize<T>(rawJsonStringStoresDictionary[(scope, id)]);
+		return JsonSerializer.Deserialize<T>(rawJsonStringOutgoingCache[(scope, id)]);
 	}
 
 	public T? GetCachedOutgoingGlobalValue<T>(string id) => GetCachedOutgoingValue<T>("global", id);
+
+	public async Task<bool> UpdateValueAsync<T>(string scope, string id, Func<T?, T> updater)
+	{
+		// Retrieve the existing value
+		if (!TryGetCachedOutgoingValue(scope, id, out T? existingValue))
+		{
+			return false;
+		}
+
+		// Store the updated value
+		await SendValueAsync(scope, id, updater(existingValue));
+
+		return true;
+	}
+
+	public async Task<bool> UpdateGlobalValueAsync<T>(string id, Func<T?, T> updater) => await UpdateValueAsync("global", id, updater);
 
 	// Helpers
 
